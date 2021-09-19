@@ -1,11 +1,11 @@
 # IC_2017preliminary_graduate_DT
 Distance Transform
 
-Total cell area: 5477.509746
+Total cell area: 5258.545147
 
-Clock cycle: 7.0
+Clock cycle: 10.0
 
 Simulation time:
 
-  1. TB1: 1323049 ns
-  2. TB2: 1026865 ns
+  1. TB1: 1180590.111 ns
+  2. TB2: 969030.111 ns
