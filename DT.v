@@ -12,10 +12,8 @@ module DT(
 	input [7:0]	res_di
 );
 
-reg [4:0] state, next;
+reg [3:0] state, next;
 reg [3:0] index;
-
-integer i;
 
 always @ (posedge clk or negedge reset) begin
 	if(!reset) begin
@@ -32,156 +30,127 @@ always @ (posedge clk or negedge reset) begin
 	else begin
 		state <= next;
 		case(state)
-			5'd0: begin
-				sti_rd <= 1;
-				index <= 15;
-			end
-			5'd2: begin 
+			4'd0: begin 
 				sti_rd <= 0;
-				if(sti_di[index] == 0) begin // background, 0
+				if(sti_di[index] == 0) begin // background, res_do = 0
 					res_wr <= 1;
 					res_do <= 0;
 				end
-				else begin // object, find (minimum + 1)
+				else begin // object, res_do = (min + 1)
 					res_rd <= 1;
 					res_addr <= res_addr - 129; 
 				end
 			end
-			5'd4: begin // read NW
-				res_rd <= 1;
+			4'd1: begin // NW
 				res_do <= res_di;
 				res_addr <= res_addr + 1;
 			end
- 			5'd6: begin // read N		
-				res_rd <= 1;
+			4'd2: begin // N
 				res_addr <= res_addr + 1;
-				if(res_do < res_di)
-					res_do <= res_do;
-				else 
+				if(res_di < res_do) 
 					res_do <= res_di;
 			end
-			5'd8: begin // read NE
-				res_rd <= 1;
+			4'd3: begin // NE
 				res_addr <= res_addr + 126;
-				if(res_do < res_di)
-					res_do <= res_do;
-				else 
+				if(res_di < res_do) 
 					res_do <= res_di;
 			end
-			5'd10: begin // read W
+			4'd4: begin // W
 				res_wr <= 1;
+				res_rd <= 0;
 				res_addr <= res_addr + 1;
-				if(res_do < res_di)
-					res_do <= res_do + 1;
-				else 
+				if(res_di < res_do)
 					res_do <= res_di + 1;
-			end
-			5'd11: begin
+				else 
+					res_do <= res_do + 1;
+			end				
+			4'd5: begin
 				res_wr <= 0;
 				res_addr <= res_addr + 1;
-				index <= index - 1;
-				if(index == 0) 
+				if(index == 0) begin
+					sti_rd <= 1;
 					sti_addr <= sti_addr + 1;
+					index <= 15;
+				end
+				else 
+					index <= index - 1;
 			end
-			5'd12: begin 
+			4'd6: begin 
 				res_rd <= 1;
 				res_addr <= 16383;
 			end
-			5'd14: begin // Px,y
+			4'd7: begin // Px,y
 				res_do <= res_di;
 				if(res_di[7:1] == 7'b0000000) begin
 					res_wr <= 1;
+					res_rd <= 0;
 				end
 				else begin
 					res_rd <= 1;
 					res_addr <= res_addr + 1;
 				end
 			end
-			5'd16: begin // read E
-				res_rd <= 1;
+			4'd8: begin // E
 				res_addr <= res_addr + 126;
-				if(res_do < (res_di + 1))
-					res_do <= res_do;
-				else 
-					res_do <= res_di + 1;
+				if((res_di + 1) < res_do)
+					res_do <= res_di + 1;	
 			end
-			5'd18: begin // read SW
-				res_rd <= 1;
+			4'd9: begin // SW 
 				res_addr <= res_addr + 1;
-				if(res_do < (res_di + 1))
-					res_do <= res_do;
-				else 
+				if((res_di + 1) < res_do)
 					res_do <= res_di + 1;
 			end
-			5'd20: begin // read S
-				res_rd <= 1;
+			4'd10: begin // S
 				res_addr <= res_addr + 1;
-				if(res_do < (res_di + 1))
-					res_do <= res_do;
-				else 
+				if((res_di + 1) < res_do)
 					res_do <= res_di + 1;
 			end
-			5'd22: begin // read SE
+			4'd11: begin // SE
+				res_rd <= 0;
 				res_wr <= 1;
 				res_addr <= res_addr - 129;
-				if(res_do < (res_di + 1))
-					res_do <= res_do;
-				else 
+				if((res_di + 1) < res_do)
 					res_do <= res_di + 1;
 			end
-			5'd23: begin
+			4'd12: begin
 				res_rd <= 1;
 				res_wr <= 0;
 				res_addr <= res_addr - 1;
 			end
-			5'd25: begin
-				done <= 1;
-			end
 			default: begin
-				res_rd <= 0;
-				res_wr <= 0;
+				done <= 1;
 			end
 		endcase
 	end
 end
 
 always @ (*) begin
-	case(state)
-		5'd2: begin
-			if(sti_di[index] == 0)
-				next = 11;
-			else 
-				next = 3;
-		end
-		5'd11: begin
-			if(index == 0) begin // finish each word
-				if(res_addr == 16383) // finish forward pass
-					next = 12;
-				else 
-					next = 0;
-			end
-			else
-				next = 2;
-		end
-		5'd14: begin
-			if(res_di[7:1] == 7'b0000000)
-				next = 23;
-			else 
-				next = state + 1;
-		end
-		5'd23: begin
-			if(res_addr == 0)
-				next = 25; // done
-			else 
-				next = state + 1;
-		end
-		5'd24: begin
-			next = 14;
-		end
-		default: begin
-			next = state + 1;
-		end
-	endcase
+	if(state == 0) begin
+		if(sti_di[index] == 0) 
+			next = 5;
+		else 
+			next = 1;
+	end
+	else if(state == 5) begin
+		if(res_addr == 16383) // finish forward pass
+			next = 6;
+		else 
+			next = 0;
+	end
+	else if(state == 7) begin
+		if(res_di[7:1] == 7'b0000000)
+			next = 12;
+		else 
+			next = 8;
+	end
+	else if(state == 12) begin
+		if(res_addr == 0) // done 
+			next = 13;
+		else 
+			next = 7;
+	end
+	else 
+		next = state + 1;
 end
 
 endmodule
